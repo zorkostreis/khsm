@@ -24,15 +24,12 @@ RSpec.describe GameQuestion, type: :model do
       # именно под буквой b в тесте мы спрятали указатель на верный ответ
       expect(game_question.answer_correct?('b')).to be_truthy
     end
-  end
 
-  # help_hash у нас имеет такой формат:
-  # {
-  #   fifty_fifty: ['a', 'b'], # При использовании подсказски остались варианты a и b
-  #   audience_help: {'a' => 42, 'c' => 37 ...}, # Распределение голосов по вариантам a, b, c, d
-  #   friend_call: 'Василий Петрович считает, что правильный ответ A'
-  # }
-  #
+    it 'correct .level and .text delegates' do
+      expect(game_question.text).to eq game_question.question.text
+      expect(game_question.level).to eq game_question.question.level
+    end
+  end
 
   context 'user helpers' do
     it 'correct audience_help' do
