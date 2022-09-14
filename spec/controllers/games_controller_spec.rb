@@ -17,6 +17,8 @@ RSpec.describe GamesController, type: :controller do
   # игра с прописанными игровыми вопросами
   let(:game_w_questions) { FactoryGirl.create(:game_with_questions, user: user) }
 
+  let(:question) { game_w_questions.current_game_question }
+
   # группа тестов для незалогиненного юзера 
   context 'Anon' do
     after(:each) do
@@ -34,7 +36,7 @@ RSpec.describe GamesController, type: :controller do
     end
 
     it 'gets kicked from #answer' do
-      put :answer, id: game_w_questions.id, letter: game_w_questions.current_game_question.correct_answer_key
+      put :answer, id: game_w_questions.id, letter: question.correct_answer_key
     end
 
     it 'gets kicked from #take_money' do
@@ -60,7 +62,7 @@ RSpec.describe GamesController, type: :controller do
       game = assigns(:game) # вытаскиваем из контроллера поле @game
 
       # проверяем состояние этой игры
-      expect(game.finished?).to be_falsey
+      expect(game.finished?).to be false
       expect(game.user).to eq(user)
       # и редирект на страницу этой игры
       expect(response).to redirect_to(game_path(game))
@@ -71,7 +73,7 @@ RSpec.describe GamesController, type: :controller do
     it '#show game' do
       get :show, id: game_w_questions.id
       game = assigns(:game) # вытаскиваем из контроллера поле @game
-      expect(game.finished?).to be_falsey
+      expect(game.finished?).to be false
       expect(game.user).to eq(user)
 
       expect(response.status).to eq(200) # должен быть ответ HTTP 200
@@ -81,10 +83,10 @@ RSpec.describe GamesController, type: :controller do
     # юзер отвечает на игру корректно - игра продолжается
     it 'answers correct' do
       # передаем параметр params[:letter]
-      put :answer, id: game_w_questions.id, letter: game_w_questions.current_game_question.correct_answer_key
+      put :answer, id: game_w_questions.id, letter: question.correct_answer_key
       game = assigns(:game)
 
-      expect(game.finished?).to be_falsey
+      expect(game.finished?).to be false
       expect(game.current_level).to be > 0
       expect(response).to redirect_to(game_path(game))
       expect(flash.empty?).to be_truthy # удачный ответ не заполняет flash
@@ -93,7 +95,7 @@ RSpec.describe GamesController, type: :controller do
     # тест на отработку "помощи зала"
     it 'uses audience help' do
       # сперва проверяем что в подсказках текущего вопроса пусто
-      expect(game_w_questions.current_game_question.help_hash[:audience_help]).not_to be
+      expect(question.help_hash[:audience_help]).not_to be
       expect(game_w_questions.audience_help_used).to be_falsey
 
       # фигачим запрос в контроллен с нужным типом
@@ -101,14 +103,14 @@ RSpec.describe GamesController, type: :controller do
       game = assigns(:game)
 
       # проверяем, что игра не закончилась, что флажок установился, и подсказка записалась
-      expect(game.finished?).to be_falsey
-      expect(game.audience_help_used).to be_truthy
+      expect(game.finished?).to be false
+      expect(game.audience_help_used).to be true
       expect(game.current_game_question.help_hash[:audience_help]).to be
       expect(game.current_game_question.help_hash[:audience_help].keys).to contain_exactly('a', 'b', 'c', 'd')
       expect(response).to redirect_to(game_path(game))
     end
 
-    it "doesnt show another user's game" do
+    it "doesnt see another user's game" do
       alien_game = FactoryGirl.create(:game_with_questions)
 
       get :show, id: alien_game.id
@@ -118,7 +120,7 @@ RSpec.describe GamesController, type: :controller do
       expect(flash[:alert]).to be
     end
 
-    it 'take money works correctly' do
+    it 'takes money' do
       game_w_questions.update_attribute(:current_level, 2)
 
       put :take_money, id: game_w_questions.id
@@ -144,6 +146,25 @@ RSpec.describe GamesController, type: :controller do
       expect(game).to be_nil
       expect(response).to redirect_to(game_path(game_w_questions))
       expect(flash[:alert]).to be
+    end
+    
+    context 'when user answers wrong' do
+      let(:wrong_answer) { (question.variants.keys - [question.correct_answer_key]).sample }
+      let(:game) { assigns(:game) }
+
+      before { put :answer, id: game_w_questions.id, letter: wrong_answer }
+
+      it 'finishes the game' do 
+        expect(game.finished?).to be true
+      end
+
+      it 'redirects to user profile page' do
+        expect(response).to redirect_to user_path(user)
+      end
+
+      it 'shows alert flash' do
+        expect(flash[:alert]).to be
+      end
     end
   end
 end
