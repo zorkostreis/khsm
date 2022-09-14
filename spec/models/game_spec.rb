@@ -13,6 +13,8 @@ RSpec.describe Game, type: :model do
   # игра с прописанными игровыми вопросами
   let(:game_w_questions) { FactoryGirl.create(:game_with_questions, user: user) }
 
+  let(:question) { game_w_questions.current_game_question }
+
   # Группа тестов на работу фабрики создания новых игр
   context 'Game Factory' do
     it 'Game.create_game! new correct game' do
@@ -37,7 +39,6 @@ RSpec.describe Game, type: :model do
       expect(game.game_questions.map(&:level)).to eq (0..14).to_a
     end
   end
-
 
   # тесты на основную игровую логику
   context 'game mechanics' do
@@ -89,10 +90,9 @@ RSpec.describe Game, type: :model do
       expect(game_w_questions.status).to eq(:won)
     end
 
-
     it ':fail' do
       game_w_questions.is_failed = true
-      
+
       expect(game_w_questions.status).to eq(:fail)
     end
 
@@ -117,6 +117,85 @@ RSpec.describe Game, type: :model do
   describe '#previous_level' do
     it 'returns correct previous level' do
       expect(game_w_questions.previous_level).to eq(game_w_questions.current_level - 1)
+    end
+  end
+
+  describe '#answer_current_question!' do
+    context 'user answers correctly' do
+      context 'and it is not the last question' do
+        let(:correcty_answered_game) do
+          expect(game_w_questions.answer_current_question!(question.correct_answer_key)).to be(true)
+          game_w_questions
+        end
+
+        it 'does not finish the game' do
+          expect(correcty_answered_game.finished?).to be(false)
+        end
+
+        it 'moves game to the next level' do
+          expect(correcty_answered_game.current_level).to be(1)
+        end
+
+        it '.status returns :in_progress' do
+          expect(correcty_answered_game.status).to be(:in_progress)
+        end
+      end
+
+      context 'and it is the last question' do
+        let(:last_question_answered_game) do
+          game_w_questions.current_level = Question::QUESTION_LEVELS.max
+          expect(game_w_questions.answer_current_question!(question.correct_answer_key)).to be(true)
+          game_w_questions
+        end
+
+        it 'finishes the game' do
+          expect(last_question_answered_game.finished?).to be(true)
+        end
+
+        it 'changes status to :won' do
+          expect(last_question_answered_game.status).to be(:won)
+        end
+
+        it 'adds prize amount to user balance' do
+          expect(user.balance).to eq(game_w_questions.prize)
+        end
+      end
+
+      context 'but after timeout' do
+        before { game_w_questions.created_at = 1.hour.ago }
+  
+        let(:late_answered_game) do
+          expect(game_w_questions.answer_current_question!(question.correct_answer_key)).to be(false)
+          game_w_questions
+        end
+  
+        it 'finishes the game' do
+          expect(late_answered_game.finished?).to be(true)
+        end
+  
+        it 'changes status to :timeout' do
+          expect(late_answered_game.status).to be(:timeout)
+        end
+      end
+    end
+
+    context 'user gives wrong answer' do
+      let(:wrongly_answered_game) do
+        expect(game_w_questions.answer_current_question!('e')).to be(false)
+        game_w_questions
+      end
+
+      it 'finishes the game' do
+        expect(wrongly_answered_game.finished?).to be(true)
+      end
+
+      it 'sets is_failed to true' do
+        expect(wrongly_answered_game.is_failed).to be(true)
+      end
+
+      it 'changes status to :fail' do
+        expect(wrongly_answered_game.status).to be(:fail)
+      end
     end
   end
 end
