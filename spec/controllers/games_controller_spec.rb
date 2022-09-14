@@ -91,5 +91,43 @@ RSpec.describe GamesController, type: :controller do
       expect(game.current_game_question.help_hash[:audience_help].keys).to contain_exactly('a', 'b', 'c', 'd')
       expect(response).to redirect_to(game_path(game))
     end
+
+    it "doesnt show another user's game" do
+      alien_game = FactoryGirl.create(:game_with_questions)
+
+      get :show, id: alien_game.id
+  
+      expect(response.status).not_to eq(200)
+      expect(response).to redirect_to(root_path)
+      expect(flash[:alert]).to be
+    end
+
+    it 'take money works correctly' do
+      game_w_questions.update_attribute(:current_level, 2)
+
+      put :take_money, id: game_w_questions.id
+
+      game = assigns(:game)
+
+      expect(game.finished?).to be true
+      expect(game.prize).to eq(Game::PRIZES.second)
+
+      user.reload
+      expect(user.balance).to eq(game.prize)
+
+      expect(response).to redirect_to(user_path(user))
+      expect(flash[:warning]).to be
+    end
+
+    it 'tries to create second game' do
+      expect(game_w_questions.finished?).to be false
+
+      expect { post :create }.to change(Game, :count).by 0
+      game = assigns(:game)
+
+      expect(game).to be_nil
+      expect(response).to redirect_to(game_path(game_w_questions))
+      expect(flash[:alert]).to be
+    end
   end
 end
