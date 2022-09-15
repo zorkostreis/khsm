@@ -95,7 +95,6 @@ RSpec.describe GameQuestion, type: :model do
     end
   end
  
-
   describe '#correct_answer_key' do
     it 'returns correct answer key (b)' do
       expect(game_question.correct_answer_key).to eq('b')
