@@ -31,31 +31,70 @@ RSpec.describe GameQuestion, type: :model do
     end
   end
 
-  context 'user helpers' do
-    it 'correct audience_help' do
+  context 'before using helpers' do
+    it 'doesnt include audience_help' do
       expect(game_question.help_hash).not_to include(:audience_help)
-
-      game_question.add_audience_help
-
-      expect(game_question.help_hash).to include(:audience_help)
-
-      ah = game_question.help_hash[:audience_help]
-      expect(ah.keys).to contain_exactly('a', 'b', 'c', 'd')
     end
 
-    it 'correct fifty_fifty' do
+    it 'doesnt include fifty_fifty' do
       expect(game_question.help_hash).not_to include(:fifty_fifty)
+    end
 
-      game_question.add_fifty_fifty
-
-      expect(game_question.help_hash).to include(:fifty_fifty)
-
-      ff = game_question.help_hash[:fifty_fifty]
-
-      expect(ff).to include('b')
-      expect(ff.size).to eq 2
+    it 'doesnt include friend_call' do
+      expect(game_question.help_hash).not_to include(:friend_call)
     end
   end
+ 
+  describe '#audience_help' do
+    let(:audience_help) { game_question.help_hash[:audience_help] }
+    
+    before { game_question.add_audience_help }
+
+    it 'is included in help_hash' do
+      expect(game_question.help_hash).to include(:audience_help)
+    end
+
+    it 'contains correct keys' do
+      expect(audience_help.keys).to contain_exactly('a', 'b', 'c', 'd')
+    end
+  end
+
+  describe '#fifty_fifty' do
+    let(:fifty_fifty) { game_question.help_hash[:fifty_fifty] }
+
+    before { game_question.add_fifty_fifty }
+
+    it 'is included in help_hash' do
+      expect(game_question.help_hash).to include(:fifty_fifty)
+    end
+
+    it 'includes b' do
+      expect(fifty_fifty).to include('b')
+    end
+
+    it 'has 2 strings' do
+      expect(fifty_fifty.size).to eq 2
+    end
+  end
+
+  describe '#friend_call' do
+    let(:friend_call) { game_question.help_hash[:friend_call] }
+
+    before { game_question.add_friend_call }
+
+    it 'is included in help_hash' do
+      expect(game_question.help_hash).to include(:friend_call)
+    end
+
+    it 'contains a string' do
+      expect(friend_call).to be_a(String)
+    end
+
+    it 'contains A B C or D' do
+      expect(friend_call).to match(/[ABCD]/)
+    end
+  end
+ 
 
   describe '#correct_answer_key' do
     it 'returns correct answer key (b)' do
